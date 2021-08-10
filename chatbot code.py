@@ -3,7 +3,6 @@
 # responses to their age, weight, current weight, desired weight, health goals, previous injuries, and food allergies
 
 from flask import Flask, request
-import webbrowser
 
 app = Flask(__name__)
 
