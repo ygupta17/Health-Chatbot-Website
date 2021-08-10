@@ -35,7 +35,6 @@ def webhook():
 
     elif query_result['intent']['displayName'] == "userInputsHeight/ask for goals":
         # intent is user enters their height and bot asks for health goal
-
         height = query_result.get('parameters').get('number')
 
     elif query_result['intent']['displayName'] == "UserInputsGoal/ask for injuries":
