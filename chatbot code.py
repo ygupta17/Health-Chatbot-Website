@@ -6,12 +6,13 @@ from flask import Flask, request
 
 app = Flask(__name__)
 
-
 @app.route('/webhook', methods=['GET', 'POST'])
 def webhook():
-    global user_name, age, current_weight, desired_weight, height, goal, injuries, food_allergies, age, age_based_rec, \
-        l_exercises, l_food, old_bmi, new_bmi
+    #the variables we will store information in to eventually give personalized recommendations
+    user_name, age, current_weight, desired_weight, height, goal, injuries, food_allergies, age, age_based_rec, \
+        l_exercises, l_food, old_bmi, new_bmi = ""
 
+    #get the JSON object that stores the values from Dialogflow
     req = request.get_json(silent=False, force=False, cache=True)
     query_result = req.get('queryResult')
 
@@ -54,8 +55,8 @@ def webhook():
     new_bmi = round((float(desired_weight) * 0.453592) / ((float(
             height) * 0.0254) ** 2), 1)  # this will give the user's desired BMI based on the weight goal they entered
 
-    # the following code consists of the different exercises needed to build muscle and the
-    # muscles/body parts needed for each exercise
+    # the following code consists of the different free weight and machine related exercises to build muscle and the
+    # muscles/body parts needed
     free_weight_list = ["bench press", "bicep curls", "shoulder press", "deadlifts", "dumbbell fly"]
     free_weight_dict = {"bench press": ["arms", "chest", "shoulders"], "bicep curls": ["arms"],
                         "shoulder press": ["arms", "back", "chest", "shoulders"],
@@ -67,8 +68,8 @@ def webhook():
                     "pec deck": ["chest"],
                     "lat pulldown": ["back"], "lateral raises": ["shoulders"]}
 
-    # the following code consists of the different exercises needed to lose weight and the
-    # muscles/body parts needed for each exercise
+    # the following code consists of the different body weight and cardio related exercises to lose weight and the
+    # the muscles and body parts needed
     bodyweight_list = ["pullups", "chinups", "pushups", "squats", "planks"]
     bodyweight_dict = {"pullups": ["back", "arms", "shoulders", "chest"],
                        "chinups": ["back", "arms", "shoulders", "chest"],
@@ -80,13 +81,14 @@ def webhook():
                    "rowing machine": ["shoulders", "back", "glutes", "quads", "chest", "cardiovascular"],
                    "elliptical": ["glutes", "hamstrings", "quads", "chest", "back", "arms", "cardiovascular"]}
 
-    # these are a list of the recommended foods to build muscle and lose weight
+    # these are lists of the recommended foods to build muscle and lose weight
     build_muscle_foods = ["quinoa", "brown rice", "buckwheat", "eggs", "chicken", "salmon", "tuna",
                           "greek yogurt",
                           "beans", "protein powders"]
     lose_fat_foods = ["eggs", "kale", "spinach", "collards", "salmon", "tuna", "avocados", "oats", "quinoa", "fruit",
                       "coconut oil"]
-
+    
+    #this will give an age based recommendation
     if age < 30:
         age_based_rec = "we recommend doing anaerobic (strength training) and aerobic (cardio) exercises."
     elif age < 40:
@@ -102,11 +104,16 @@ def webhook():
     l_exercises = [] # this list will consist of the exercises the user can do when injuries have been taken into account
     # we will now generate recommendation taking injuries into account
     injuries = [injuries]
-    if goal == "Build muscle":
-        for first_bracket in injuries:
-            for second_bracket in first_bracket:
-                for all_injuries in second_bracket:
-                    injured = sorted(all_injuries.split(","))
+    
+    #loops necessary to be able to work with the list of injuries
+    for first_bracket in injuries:
+        for second_bracket in first_bracket:
+            for all_injuries in second_bracket:
+                injured = sorted(all_injuries.split(","))
+                
+                #if the goal is to build muscle
+                if goal == "Build muscle":
+                    #iterate through the free weight dictionary to see which which injuries prevent customers from doing certain exercises
                     for exercise in free_weight_dict:
                         for injury in injured:
                             injury = injury.strip()
@@ -117,7 +124,8 @@ def webhook():
                                 break
                             elif injury in free_weight_dict[exercise]:
                                 break
-
+                    
+                    #iterate through the machine dictionary to see which injuries prevent customers from doing certain exercises
                     for exercise in machine_dict:
                         for injury in injured:
                             injury = injury.strip()
@@ -128,12 +136,10 @@ def webhook():
                                 break
                             elif injury in machine_dict[exercise]:
                                 break
-
-    else:
-        for first_bracket in injuries:
-            for second_bracket in first_bracket:
-                for all_injuries in second_bracket:
-                    injured = sorted(all_injuries.split(","))
+                                
+                #if goal is to lose weight
+                else:
+                    #iterate through the bodyweight dictionary to see which injuries prevent customers from doing certain exercises
                     for exercise in bodyweight_dict:
                         for injury in injured:
                             injury = injury.strip()
@@ -144,7 +150,8 @@ def webhook():
                                 break
                             elif injury in bodyweight_dict[exercise]:
                                 break
-
+                    
+                    #iterate through the cardio dictionary to see which injuries prevent customers from doing certain exercises
                     for exercise in cardio_dict:
                         for injury in injured:
                             injury = injury.strip()
@@ -156,37 +163,42 @@ def webhook():
                             elif injury in cardio_dict[exercise]:
                                 break
 
-    if len(l_exercises) == 0: # this is the conditional for if there are no exercises to recommend
+    if len(l_exercises) == 0: # this is the conditional for if there are no exercises to recommend which happens if the customer has too many injuries
         l_exercises = "we do not have any exercises that would be suitable for you"
 
     l_food = [] # this list will consist of the foods the user can eat when allergies have been taken into account
+    #goal is to build muscle
     if goal == "Build muscle":
         for food in build_muscle_foods:
             if food not in food_allergies:
                 l_food.append(food)
-
+    
+    #goal is to lose weight
     else:
         for food in lose_fat_foods:
             if food not in food_allergies:
                 l_food.append(food)
 
-    if len(l_food) == 0:
+    if len(l_food) == 0: #this is the conditional for if there are no foods to recommened which happens if the customer has too many allergies
         l_food = "We do not have any suitable foods for you."
 
+    #when the customer is ready to get their recommendation, a JSON object will be returned to Dialogflow
     if query_result['intent']['displayName'] == "I'm ready":
+        #if there is at least one exercise the user can do l_exercise will be a list
         if type(l_exercises) == list:
             return {"fulfillmentText": "Your current BMI is " + str(old_bmi) + " and the BMI you are trying to get to is " +
                     str(new_bmi) + ". Based on your injuries, we recommend doing the following exercises: " + ", ".join(l_exercises) +
                     ". Based on your age " + age_based_rec + " We also recommend following a diet that consists of the following "
                     "foods: " + ", ".join(l_food) + ". Our final recommendation is to exercise caution when doing exercise so you do "
                     "not suffer more injuries. Good luck with your health plan."}
+        
+        #if there are no exercises for the user to do due to injuries, l_exercise is a string as shown in line 167
         else:
             return {"fulfillmentText": "Your current BMI is " + str(old_bmi) + " and the BMI you are trying to get to is "
                     + str(new_bmi) + ". Based on your injuries," + str(l_exercises) + ". Based on your age " + age_based_rec +
                     " We also recommend following a diet that consists of the following foods: " + ", ".join(l_food) + ". Our final "
                     "recommendation is to exercise caution when doing exercise so you do not suffer more injuries. "
                     "Good luck with your health plan."}
-
 
 if __name__ == '__main__':
     app.config['DEBUG'] = True
