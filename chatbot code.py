@@ -27,7 +27,6 @@ def webhook():
 
     elif query_result['intent']['displayName'] == "UserInputsCurrentWeight/ask for desired weight":
         # intent is user enters their current weight and bot asks for desired weight
-        #current_weight = query_result.get('parameters').get('number')
         current_weight = query_result.get('parameters').get('number')
 
     elif query_result['intent']['displayName'] == "UserInputsDesiredWeight/ask for height":
